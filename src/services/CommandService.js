@@ -21,26 +21,26 @@ class CommandService {
     }
   }
 
-  // Enhanced sshuttle process detection
+  // Enhanced sshuttle process detection (more robust)
   static async checkSshuttleProcess() {
     try {
       console.log('🔍 Start detecting sshuttle process...');
       
-      // method1: Check PID file
+      // method1: Check PID file existence
       const pidFileCheck = await this.execute('test -f /tmp/sshuttle.pid && cat /tmp/sshuttle.pid');
       console.log(`PIDfilecheck: success=${pidFileCheck.success}, output="${pidFileCheck.stdout?.trim()}"`);
       
-      // method2: Check process名
+      // method2: Check process name
       const processCheck = await this.execute('pgrep -f "sshuttle.*bastion"');
       console.log(`process名check: success=${processCheck.success}, output="${processCheck.stdout?.trim()}"`);
       
-      // method3: check详细processinfo
+      // method3: check detailed process info
       const detailCheck = await this.execute('ps aux | grep "sshuttle.*bastion" | grep -v grep');
-      console.log(`详细Process check: success=${detailCheck.success}, found=${!!detailCheck.stdout?.trim()}`);
+      console.log(`Detailed process check: success=${detailCheck.success}, found=${!!detailCheck.stdout?.trim()}`);
       
-      // method4: check所havesshuttleprocess（更宽泛的search）
+      // method4: check all sshuttle processes (more broad search)
       const broadCheck = await this.execute('ps aux | grep sshuttle | grep -v grep');
-      console.log(`宽泛check: success=${broadCheck.success}, found=${!!broadCheck.stdout?.trim()}`);
+      console.log(`Broad check: success=${broadCheck.success}, found=${!!broadCheck.stdout?.trim()}`);
       
       const hasPidFile = pidFileCheck.success && pidFileCheck.stdout?.trim();
       const hasProcess = processCheck.success && processCheck.stdout?.trim();
@@ -49,7 +49,7 @@ class CommandService {
       
       const isRunning = hasPidFile || hasProcess || hasDetail || hasBroad;
       
-      console.log(`检测result汇总: PIDfile=${!!hasPidFile}, process名=${!!hasProcess}, 详细=${!!hasDetail}, 宽泛=${!!hasBroad}, 最终=${isRunning}`);
+      console.log(`Detection result: PIDfile=${!!hasPidFile}, process name=${!!hasProcess}, detailed=${!!hasDetail}, broad=${!!hasBroad}, final=${isRunning}`);
       
       return {
         running: isRunning,
@@ -62,7 +62,7 @@ class CommandService {
     }
   }
 
-  // 通用process检测
+  // General process detection
   static async checkProcess(processName) {
     try {
       if (processName === 'sshuttle') {
@@ -373,7 +373,7 @@ sleep 5
           timeout: 12000
         },
         {
-          name: 'Hive控制台Visit',
+          name: 'Hive console visit',
           command: 'curl -s --connect-timeout 8 --max-time 12 -I https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com',
           timeout: 15000
         },
@@ -400,7 +400,7 @@ sleep 5
     }
   }
 
-  // 其他预定义command
+  // Other predefined commands
   static async ocmLogin() {
     return await this.execute('ocm login --use-auth-code --url=integration');
   }
