@@ -198,14 +198,240 @@ app.on('before-quit', () => {
 });
 
 // IPC处理器 - 执行命令
-ipcMain.handle('execute-command', async (event, command) => {
+ipcMain.handle('execute-command', async (event, command, options = {}) => {
   return new Promise((resolve, reject) => {
-    exec(command, { shell: '/bin/zsh' }, (error, stdout, stderr) => {
+    const timeout = options.timeout || 30000; // 默认30秒超时
+    
+    const child = exec(command, { 
+      shell: '/bin/zsh',
+      timeout: timeout
+    }, (error, stdout, stderr) => {
       if (error) {
-        resolve({ success: false, error: error.message, stderr });
+        if (error.code === 'ETIMEDOUT') {
+          resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr });
+        } else {
+          resolve({ success: false, error: error.message, stderr });
+        }
       } else {
         resolve({ success: true, stdout, stderr });
       }
+    });
+
+    // 实时输出
+    if (options.realtime && mainWindow) {
+      child.stdout?.on('data', (data) => {
+        mainWindow.webContents.send('command-output', { type: 'stdout', data: data.toString() });
+      });
+      
+      child.stderr?.on('data', (data) => {
+        mainWindow.webContents.send('command-output', { type: 'stderr', data: data.toString() });
+      });
+    }
+  });
+});
+
+// IPC处理器 - 实时执行命令（支持自动密码输入）
+ipcMain.handle('execute-command-realtime', async (event, command, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const timeout = options.timeout || 30000;
+    const passwords = options.passwords || {};
+    let output = '';
+    let errorOutput = '';
+    
+    // 🔥 改进的sshuttle支持，使用nohup后台运行
+    if (options.autoAuth && command.includes('sshuttle') && passwords.ssh && passwords.sudo) {
+      const { spawn } = require('child_process');
+      
+      // 使用expect脚本，同时处理SSH密码和sudo密码
+      const cleanCommand = command.replace(/'/g, "\\'");
+      const expectScript = `
+expect << 'EOF'
+set timeout ${Math.floor(timeout/1000)}
+spawn /bin/zsh -c {${cleanCommand}}
+expect {
+  "Are you sure you want to continue connecting" {
+    send "yes\\r"
+    exp_continue
+  }
+  "Enter passphrase for key" {
+    send "${passwords.ssh}\\r"
+    exp_continue
+  }
+  "Password:" {
+    send "${passwords.sudo}\\r"
+    exp_continue
+  }
+  "\\[local sudo\\] Password:" {
+    send "${passwords.sudo}\\r"
+    exp_continue
+  }
+  "c : Connected" {
+    puts "Sshuttle tunnel established"
+    exit 0
+  }
+  "Connected to server" {
+    puts "Sshuttle connection successful"
+    exit 0
+  }
+  timeout {
+    puts "Connection timeout"
+    exit 1
+  }
+  eof {
+    puts "Process completed"
+    exit 0
+  }
+}
+EOF
+      `.trim();
+      
+      const child = spawn('/bin/bash', ['-c', expectScript], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, TERM: 'xterm-256color' }
+      });
+
+      // 处理输出
+      child.stdout?.on('data', (data) => {
+        const text = data.toString();
+        output += text;
+        if (mainWindow) {
+          mainWindow.webContents.send('command-output', { type: 'stdout', data: text });
+        }
+      });
+      
+      child.stderr?.on('data', (data) => {
+        const text = data.toString();
+        errorOutput += text;
+        if (mainWindow) {
+          mainWindow.webContents.send('command-output', { type: 'stderr', data: text });
+        }
+      });
+
+      // 设置超时
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+      }, timeout);
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        resolve({ 
+          success: code === 0 || code === null, // daemon进程可能在后台运行
+          stdout: output, 
+          stderr: errorOutput,
+          exitCode: code
+        });
+      });
+
+      child.on('error', (error) => {
+        clearTimeout(timer);
+        resolve({ success: false, error: error.message, stderr: errorOutput });
+      });
+      
+      return;
+    }
+    
+    // 对于sudo命令，使用-S标志和stdin直接提供密码
+    if (options.autoAuth && passwords.sudo && command.includes('sudo') && !command.includes('sshuttle')) {
+      const { spawn } = require('child_process');
+      
+      // 将sudo命令转换为使用-S标志
+      const modifiedCommand = command.replace('sudo ', 'sudo -S ');
+      
+      const child = spawn('/bin/zsh', ['-c', modifiedCommand], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env }
+      });
+
+      // 立即向stdin写入密码
+      child.stdin.write(passwords.sudo + '\n');
+      child.stdin.end();
+
+      // 处理输出
+      child.stdout?.on('data', (data) => {
+        const text = data.toString();
+        output += text;
+        if (mainWindow) {
+          mainWindow.webContents.send('command-output', { type: 'stdout', data: text });
+        }
+      });
+      
+      child.stderr?.on('data', (data) => {
+        const text = data.toString();
+        errorOutput += text;
+        if (mainWindow) {
+          mainWindow.webContents.send('command-output', { type: 'stderr', data: text });
+        }
+      });
+
+      // 设置超时
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+      }, timeout);
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        resolve({ 
+          success: code === 0, 
+          stdout: output, 
+          stderr: errorOutput,
+          exitCode: code
+        });
+      });
+
+      child.on('error', (error) => {
+        clearTimeout(timer);
+        resolve({ success: false, error: error.message, stderr: errorOutput });
+      });
+      
+      return;
+    }
+    
+    // 对于其他命令，使用普通方法
+    const { spawn } = require('child_process');
+    const child = spawn('/bin/zsh', ['-c', command], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env }
+    });
+
+    // 处理stdout
+    child.stdout?.on('data', (data) => {
+      const text = data.toString();
+      output += text;
+      if (mainWindow) {
+        mainWindow.webContents.send('command-output', { type: 'stdout', data: text });
+      }
+    });
+    
+    // 处理stderr
+    child.stderr?.on('data', (data) => {
+      const text = data.toString();
+      errorOutput += text;
+      if (mainWindow) {
+        mainWindow.webContents.send('command-output', { type: 'stderr', data: text });
+      }
+    });
+
+    // 设置超时
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+    }, timeout);
+
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ 
+        success: code === 0, 
+        stdout: output, 
+        stderr: errorOutput,
+        exitCode: code
+      });
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      resolve({ success: false, error: error.message, stderr: errorOutput });
     });
   });
 });
