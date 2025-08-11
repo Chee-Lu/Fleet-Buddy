@@ -27,7 +27,7 @@ function createWindow() {
   
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
-    // 开发模式下canopen开发者工具
+    // 开发模式下canopen开发者工具  
     // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
@@ -67,7 +67,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '📊 show主界面',
+      label: '📊 Show Main Interface ',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -79,21 +79,21 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '🔗 快速connectionHive',
+      label: '🔗 Quick Connection to Hive',
       click: async () => {
         const result = await executeCommand('sudo route add -net 10.164.0.0/16 -interface en0 && nohup sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16 > /dev/null 2>&1 &');
         showNotification('Hiveconnection', result.success ? 'connectionsuccessful！' : 'connectionfailed');
       }
     },
     {
-      label: '🔄 refreshOCM Token',
+      label: '🔄 Refresh OCM Token',  
       click: async () => {
         const result = await executeCommand('ocm token');
-        showNotification('OCM Token', result.success ? 'Token已refresh' : 'refreshfailed');
+        showNotification('OCM Token', result.success ? 'Token has been refreshed' : 'refreshfailed');
       }
     },
     {
-      label: '⚙️ configuretest环境',
+      label: '⚙️ Configure Test Environment',
       click: async () => {
         const commands = [
           'export SUPER_ADMIN_USER_TOKEN=$(ocm token)',
@@ -108,25 +108,25 @@ function createTray() {
             break;
           }
         }
-        showNotification('test环境', success ? 'configurefinish！' : 'configurefailed');
+        showNotification('test environment', success ? 'configurefinish！' : 'configurefailed');
       }
     },
     { type: 'separator' },
     {
-      label: '🌐 openHive控制台',
+      label: '🌐 Open Hive Console',
       click: () => {
         require('electron').shell.openExternal('https://console-openshift-console.apps.hive01ue1.f7i5.p1.openshiftapps.com/dashboards');
       }
     },
     {
-      label: '🔑 获取Red Hat Token',
+      label: '🔑 Get Red Hat Token',
       click: () => {
         require('electron').shell.openExternal('https://console.redhat.com/openshift/token');
       }
     },
     { type: 'separator' },
     {
-      label: '🚪 exit',
+      label: '🚪 Exit',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -136,7 +136,7 @@ function createTray() {
   
   tray.setContextMenu(contextMenu);
   
-  // 点击Tray iconshow/hide主window
+  // Click Tray icon to show/hide main window
   tray.on('click', () => {
     if (mainWindow) {
       if (mainWindow.isVisible()) {
@@ -151,7 +151,7 @@ function createTray() {
   });
 }
 
-// Execute command的辅助function
+// Execute command helper function
 async function executeCommand(command) {
   return new Promise((resolve) => {
     exec(command, { shell: '/bin/zsh' }, (error, stdout, stderr) => {
@@ -165,7 +165,7 @@ async function executeCommand(command) {
   });
 }
 
-// showsystem通知
+// Show system notification
 function showNotification(title, body) {
   new Notification(title, {
     body: body,
@@ -179,7 +179,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', (e) => {
-  // 在macOS上，保持application在托盘中running
+  // On macOS, keep application running in tray
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -211,7 +211,7 @@ ipcMain.handle('open-external', async (event, url) => {
 // IPC处理器 - Execute command
 ipcMain.handle('execute-command', async (event, command, options = {}) => {
   return new Promise((resolve, reject) => {
-    const timeout = options.timeout || 30000; // 默认30secondTimeout
+    const timeout = options.timeout || 30000; // Default 30 seconds timeout
     
     const child = exec(command, { 
       shell: '/bin/zsh',
@@ -228,7 +228,7 @@ ipcMain.handle('execute-command', async (event, command, options = {}) => {
       }
     });
 
-    // 实时output
+    // Real-time output
     if (options.realtime && mainWindow) {
       child.stdout?.on('data', (data) => {
         mainWindow.webContents.send('command-output', { type: 'stdout', data: data.toString() });
@@ -241,7 +241,7 @@ ipcMain.handle('execute-command', async (event, command, options = {}) => {
   });
 });
 
-// IPC处理器 - 实时Execute command（support自动密码input）
+// IPC handler - Real-time Execute command (support automatic password input)
 ipcMain.handle('execute-command-realtime', async (event, command, options = {}) => {
   return new Promise((resolve, reject) => {
     const timeout = options.timeout || 30000;
@@ -249,7 +249,7 @@ ipcMain.handle('execute-command-realtime', async (event, command, options = {}) 
     let output = '';
     let errorOutput = '';
     
-    // 🔥 Improved sshuttle support, using nohup background execution
+    // 🔥 Improved sshuttle support, using nohup background execution (daemon process may be running in the background)
     if (options.autoAuth && command.includes('sshuttle') && passwords.ssh && passwords.sudo) {
       const { spawn } = require('child_process');
       
@@ -301,7 +301,7 @@ EOF
         env: { ...process.env, TERM: 'xterm-256color' }
       });
 
-      // 处理output
+      // Handle output
       child.stdout?.on('data', (data) => {
         const text = data.toString();
         output += text;
@@ -327,7 +327,7 @@ EOF
       child.on('close', (code) => {
         clearTimeout(timer);
         resolve({ 
-          success: code === 0 || code === null, // daemonprocessmay在后台running
+          success: code === 0 || code === null, // daemon process may be running in the background
           stdout: output, 
           stderr: errorOutput,
           exitCode: code
@@ -342,11 +342,11 @@ EOF
       return;
     }
     
-    // 对于sudocommand，使用-S标志和stdin直接提供密码
+    // For sudo command, use -S flag and stdin to provide password directly
     if (options.autoAuth && passwords.sudo && command.includes('sudo') && !command.includes('sshuttle')) {
       const { spawn } = require('child_process');
       
-      // 将sudocommand转换为使用-S标志
+      // Convert sudo command to use -S flag
       const modifiedCommand = command.replace('sudo ', 'sudo -S ');
       
       const child = spawn('/bin/zsh', ['-c', modifiedCommand], {
@@ -354,11 +354,11 @@ EOF
         env: { ...process.env }
       });
 
-      // 立即向stdinwrite密码
+      // Immediately write password to stdin
       child.stdin.write(passwords.sudo + '\n');
       child.stdin.end();
 
-      // 处理output
+      // Handle output
       child.stdout?.on('data', (data) => {
         const text = data.toString();
         output += text;
@@ -399,14 +399,14 @@ EOF
       return;
     }
     
-    // 对于其他command，使用普通method
+    // For other commands, use normal method
     const { spawn } = require('child_process');
     const child = spawn('/bin/zsh', ['-c', command], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env }
     });
 
-    // 处理stdout
+    // Handle stdout
     child.stdout?.on('data', (data) => {
       const text = data.toString();
       output += text;
@@ -415,7 +415,7 @@ EOF
       }
     });
     
-    // 处理stderr
+    // Handle stderr
     child.stderr?.on('data', (data) => {
       const text = data.toString();
       errorOutput += text;
@@ -447,7 +447,7 @@ EOF
   });
 });
 
-// IPC处理器 - Check process status
+// IPC handler - Check process status
 ipcMain.handle('check-process', async (event, processName) => {
   return new Promise((resolve, reject) => {
     exec(`pgrep -f "${processName}"`, (error, stdout, stderr) => {
@@ -456,7 +456,7 @@ ipcMain.handle('check-process', async (event, processName) => {
   });
 });
 
-// IPC处理器 - readfile
+// IPC handler - read file
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
@@ -466,7 +466,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
-// IPC处理器 - writefile
+// IPC handler - write file
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
     fs.writeFileSync(filePath, content, 'utf8');
