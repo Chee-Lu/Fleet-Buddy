@@ -37,6 +37,7 @@ import {
   Error as ErrorIcon,
   Code as CodeIcon,
   HourglassEmpty as PendingIcon,
+  VpnKey as VpnKeyIcon,
   PlayCircleFilled as InProgressIcon,
   Route as RouteIcon,
   VpnLock as TunnelIcon,
@@ -90,15 +91,15 @@ const App = () => {
   const [hiveKubeconfigPath, setHiveKubeconfigPath] = useState('/Users/chlu/hive01ue1');
   const [activeTab, setActiveTab] = useState(0);
   
-  // Hive连接步骤状态
+  // Hive connection step states
   const [hiveSteps, setHiveSteps] = useState([
-    { id: 'route', name: '配置网络路由', icon: RouteIcon, status: 'pending', detail: 'sudo route add -net 10.164.0.0/16 -interface en0' },
-    { id: 'tunnel', name: '启动Sshuttle隧道', icon: TunnelIcon, status: 'pending', detail: 'sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16' },
-    { id: 'verify', name: '验证连接状态', icon: VerifyIcon, status: 'pending', detail: '检查进程和网络连通性' }
+    { id: 'route', name: 'Configure Network Route', icon: RouteIcon, status: 'pending', detail: 'sudo route add -net 10.164.0.0/16 -interface en0' },
+    { id: 'tunnel', name: 'Start Sshuttle Tunnel', icon: TunnelIcon, status: 'pending', detail: 'sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16' },
+    { id: 'verify', name: 'Verify Connection Status', icon: VerifyIcon, status: 'pending', detail: 'Check process and network connectivity' }
   ]);
   const [realTimeLogs, setRealTimeLogs] = useState([]);
   
-  // 设置相关状态
+  // Settings related states
   const [settings, setSettings] = useState({
     sudoPassword: '',
     sshPassphrase: '',
@@ -112,24 +113,24 @@ const App = () => {
 
   useEffect(() => {
     checkAllStatus();
-    const interval = setInterval(checkAllStatus, 30000); // 每30秒检查一次
+    const interval = setInterval(checkAllStatus, 30000); // Check every 30 seconds
     
-    // 加载保存的设置
+    // Load saved settings
     const savedSettings = localStorage.getItem('fleetBuddySettings');
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
         setSettings(parsed);
-        addLog('✅ 已加载保存的设置', 'info');
-        addLog(`📋 配置状态: autoAuth=${parsed.autoAuth}, 有sudo密码=${!!parsed.sudoPassword}, 有ssh密码=${!!parsed.sshPassphrase}`, 'info');
+        addLog('✅ Load saved settings', 'info');
+        addLog(`📋 Configuration status: autoAuth=${parsed.autoAuth}, 有sudo password=${!!parsed.sudoPassword}, 有ssh password=${!!parsed.sshPassphrase}`, 'info');
       } catch (error) {
-        addLog('❌ 设置加载失败，使用默认设置', 'error');
+        addLog('❌ Settings loading failed, using default settings', 'error');
       }
     } else {
-      addLog('ℹ️ 未找到保存的设置，请先配置应用设置', 'info');
+      addLog('ℹ️ No saved settings found, please configure App Settings first', 'info');
     }
     
-    // 监听实时命令输出
+    // Listen for real-time command output
     const { ipcRenderer } = window.require('electron');
     const handleCommandOutput = (event, data) => {
       const timestamp = new Date().toLocaleTimeString();
@@ -156,13 +157,13 @@ const App = () => {
 
   const checkAllStatus = async () => {
     try {
-      // 检查sshuttle进程
+      // Check sshuttle process
       const sshuttleStatus = await CommandService.checkProcess('sshuttle');
       
-      // 检查OCM登录状态
+      // Check OCM login status
       const ocmResult = await CommandService.execute('ocm whoami');
       
-      // 检查kubeconfig文件
+      // Check kubeconfig file
       const kubeconfigResult = await CommandService.readFile(hiveKubeconfigPath);
       
       setStatus({
@@ -172,7 +173,7 @@ const App = () => {
         hiveConnected: sshuttleStatus.running && ocmResult.success
       });
     } catch (error) {
-      console.error('检查状态失败:', error);
+      console.error('Check status failed:', error);
     }
   };
 
@@ -183,11 +184,11 @@ const App = () => {
       if (result.success) {
         addLog(successMessage, 'success');
       } else {
-        addLog(`错误: ${result.error || result.stderr}`, 'error');
+        addLog(`Error: ${result.error || result.stderr}`, 'error');
       }
       return result;
     } catch (error) {
-      addLog(`执行失败: ${error.message}`, 'error');
+      addLog(`Execute failed: ${error.message}`, 'error');
       return { success: false, error: error.message };
     } finally {
       setLoading(prev => ({ ...prev, [key]: false }));
@@ -195,26 +196,26 @@ const App = () => {
     }
   };
 
-  // 🔥 重写的一键连接到Hive功能 - 简化且可靠
+  // 🔥 Redesigned One-Click Connect to Hive functionality - simplified and reliable
   const connectToHive = async () => {
     setLoading(prev => ({ ...prev, hive: true }));
     resetSteps();
-    setRealTimeLogs([]); // 清空实时日志
+    setRealTimeLogs([]); // Clear real-time logs
     
-    addLog('🚀 开始连接到Hive...', 'info');
-    addLog(`🔍 当前设置检查: autoAuth=${settings.autoAuth}, sudo密码=${!!settings.sudoPassword}, ssh密码=${!!settings.sshPassphrase}`, 'debug');
+    addLog('🚀 Starting connection to Hive...', 'info');
+    addLog(`🔍 Current settings check: autoAuth=${settings.autoAuth}, sudo password=${!!settings.sudoPassword}, ssh password=${!!settings.sshPassphrase}`, 'debug');
     
-    // 检查必要的设置
+    // Check required settings
     if (!settings.sudoPassword || !settings.sshPassphrase) {
-      addLog('❌ 缺少必要的密码设置', 'error');
-      addLog('💡 请在"应用设置"标签页中配置sudo密码和SSH私钥密码', 'info');
-      updateStepStatus('route', 'error', '缺少密码配置');
+      addLog('❌ Missing required password settings', 'error');
+      addLog('💡 Please configure sudo password and SSH private key password in the "App Settings" tab', 'info');
+      updateStepStatus('route', 'error', 'Missing password configuration');
       setLoading(prev => ({ ...prev, hive: false }));
       return;
     }
 
     try {
-      // 使用简化的CommandService连接方法
+      // Use simplified CommandService connection method
       updateStepStatus('route', 'in_progress');
       updateStepStatus('tunnel', 'pending');
       updateStepStatus('verify', 'pending');
@@ -224,7 +225,7 @@ const App = () => {
         ssh: settings.sshPassphrase
       });
 
-      // 根据结果更新步骤状态
+      // Update step status based on result
       connectionResult.steps.forEach((step, index) => {
         const stepIds = ['route', 'tunnel', 'verify'];
         if (stepIds[index]) {
@@ -234,11 +235,11 @@ const App = () => {
       });
 
       if (connectionResult.success) {
-        addLog('🎉 Hive连接建立成功！', 'success');
-        addLog('🌐 现在可以访问: https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com/', 'success');
+        addLog('🎉 Hive Connection established successfully!', 'success');
+        addLog('🌐 Now you can access: https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com/', 'success');
         
-        // 额外进行连通性测试
-        addLog('🔍 执行额外的连通性测试...', 'info');
+        // Extra connectivity test
+        addLog('🔍 Execute extra connectivity test...', 'info');
         const connectivityTest = await CommandService.testHiveConnectivity();
         if (connectivityTest.success) {
           connectivityTest.tests.forEach(test => {
@@ -246,15 +247,15 @@ const App = () => {
           });
         }
       } else {
-        addLog(`❌ Hive连接失败: ${connectionResult.error}`, 'error');
+        addLog(`❌ Hive Connection failed: ${connectionResult.error}`, 'error');
         if (!settings.autoAuth) {
-          addLog('💡 建议: 启用自动认证以获得更好的体验', 'info');
+          addLog('💡Suggestion: Enable auto-auth for better experience', 'info');
         }
       }
       
     } catch (error) {
-      addLog(`连接过程出错: ${error.message}`, 'error');
-      updateStepStatus('verify', 'error', `连接失败: ${error.message}`);
+      addLog(`Connection process error: ${error.message}`, 'error');
+      updateStepStatus('verify', 'error', `Connection failed: ${error.message}`);
     } finally {
       setLoading(prev => ({ ...prev, hive: false }));
       setTimeout(checkAllStatus, 1000);
@@ -269,36 +270,101 @@ const App = () => {
     ];
     
     for (const cmd of commands) {
-      await executeWithLoading('testEnv', cmd, '测试环境配置中...');
+      await executeWithLoading('testEnv', cmd, 'Testing environment configuration...');
     }
     
-    addLog('测试环境配置完成！', 'success');
+    addLog('Testing environment configuration completed!', 'success');
   };
 
   const refreshOcmToken = async () => {
     const result = await executeWithLoading('ocmToken', 'ocm token', 'OCM Token已刷新');
     if (result.success) {
-      addLog(`新Token: ${result.stdout.trim()}`, 'info');
+      addLog(`New Token: ${result.stdout.trim()}`, 'info');
     }
   };
 
   const stopSshuttle = async () => {
     setLoading(prev => ({ ...prev, stopSshuttle: true }));
     try {
-      addLog('🛑 正在停止Sshuttle连接...', 'info');
+      addLog('🛑 Stopping Sshuttle connection...', 'info');
       const result = await CommandService.stopSshuttle();
       
       if (result.success) {
-        addLog('✅ Sshuttle连接已停止', 'success');
-        resetSteps(); // 重置步骤状态
+        addLog('✅ Sshuttle connection stopped', 'success');
+        resetSteps(); // Reset step status
       } else {
-        addLog(`❌ 停止Sshuttle失败: ${result.error}`, 'error');
+        addLog(`❌ Failed to stop Sshuttle: ${result.error}`, 'error');
       }
     } catch (error) {
-      addLog(`停止过程出错: ${error.message}`, 'error');
+      addLog(`Error during stop process: ${error.message}`, 'error');
     } finally {
       setLoading(prev => ({ ...prev, stopSshuttle: false }));
       setTimeout(checkAllStatus, 1000);
+    }
+  };
+
+  // 🌐 Open links in external browser
+  const openExternal = async (url) => {
+    try {
+      if (window.require) {
+        // Electron environment
+        const { ipcRenderer } = window.require('electron');
+        await ipcRenderer.invoke('open-external', url);
+      } else {
+        // Browser environment
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Failed to open external URL:', error);
+      // Fallback solution
+      window.open(url, '_blank');
+    }
+  };
+
+  // 🔑 API Token status
+  const [apiTokenData, setApiTokenData] = useState(null);
+
+  // 🔑 Get OpenShift API Token
+  const getApiToken = async () => {
+    setLoading(prev => ({ ...prev, getToken: true }));
+    try {
+      addLog('🔑 Getting OpenShift API Token...', 'info');
+      const result = await CommandService.getOpenShiftToken();
+      
+      if (result.success) {
+        addLog('✅ API Token retrieved successfully！', 'success');
+        addLog(`🔑 Source: ${result.source === 'existing_session' ? 'existing session' : 'web extraction'}`, 'info');
+        
+        // Update Token data to UI
+        setApiTokenData(result);
+        
+        // Copy oc login command to clipboard
+        try {
+          await navigator.clipboard.writeText(result.ocLoginCommand);
+          addLog('📋 oc login command copied to clipboard', 'success');
+        } catch (clipboardError) {
+          addLog('⚠️ Unable to copy to clipboard automatically, please copy manually', 'warning');
+        }
+        
+        return result;
+      } else {
+        if (result.manual) {
+          addLog('📘 Manual token retrieval required', 'warning');
+          addLog('1️⃣ Login to Hive console in browser', 'info');
+          addLog('2️⃣ Visit token page to get API token', 'info');
+          addLog('3️⃣ Or run in terminal: oc whoami --show-token', 'info');
+        } else {
+          addLog(`❌ Failed to get token: ${result.error}`, 'error');
+        }
+        setApiTokenData(null);
+        return null;
+      }
+    } catch (error) {
+      addLog(`Error during token retrieval process: ${error.message}`, 'error');
+      setApiTokenData(null);
+      return null;
+    } finally {
+      setLoading(prev => ({ ...prev, getToken: false }));
     }
   };
 
@@ -309,11 +375,11 @@ const App = () => {
   const executeCustomCommand = async () => {
     if (currentCommand.trim()) {
       const result = await CommandService.execute(currentCommand);
-      addLog(`执行命令: ${currentCommand}`, 'info');
+      addLog(`Execute command: ${currentCommand}`, 'info');
       if (result.success) {
-        addLog(`输出: ${result.stdout}`, 'success');
+        addLog(`Output: ${result.stdout}`, 'success');
       } else {
-        addLog(`错误: ${result.error || result.stderr}`, 'error');
+        addLog(`Error: ${result.error || result.stderr}`, 'error');
       }
     }
     setDialogOpen(false);
@@ -324,7 +390,7 @@ const App = () => {
     setActiveTab(newValue);
   };
 
-  // 更新步骤状态
+  // Update step status
   const updateStepStatus = (stepId, status, error = null) => {
     setHiveSteps(prev => prev.map(step => 
       step.id === stepId 
@@ -333,12 +399,12 @@ const App = () => {
     ));
   };
 
-  // 重置所有步骤状态
+  // Reset all step status
   const resetSteps = () => {
     setHiveSteps(prev => prev.map(step => ({ ...step, status: 'pending', error: null })));
   };
 
-  // 步骤显示组件
+  // Step display component
   const StepDisplay = ({ steps }) => {
     const getStatusIcon = (status) => {
       switch (status) {
@@ -370,7 +436,7 @@ const App = () => {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              🔄 连接步骤详情
+              🔄 Connection step details
             </Typography>
             <List>
               {steps.map((step, index) => {
@@ -394,16 +460,16 @@ const App = () => {
                         </Typography>
                         {step.error && (
                           <Typography variant="caption" sx={{ color: 'error.main', display: 'block', mt: 0.5 }}>
-                            错误: {step.error}
+                            Error: {step.error}
                           </Typography>
                         )}
                       </Box>
                       <Chip 
                         label={
-                          step.status === 'pending' ? '等待中' :
-                          step.status === 'in_progress' ? '进行中' :
-                          step.status === 'completed' ? '已完成' :
-                          step.status === 'error' ? '失败' : '未知'
+                          step.status === 'pending' ? 'Pending' :
+                          step.status === 'in_progress' ? 'In Progress' :
+                          step.status === 'completed' ? 'Completed' :
+                          step.status === 'error' ? 'Failed' : 'Unknown'
                         }
                         size="small"
                         color={
@@ -422,12 +488,12 @@ const App = () => {
           </CardContent>
         </Card>
 
-        {/* 实时终端输出 */}
+        {/* Real-time terminal output */}
         {realTimeLogs.length > 0 && (
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                🖥️ 实时终端输出
+                🖥️ Real-time terminal output
               </Typography>
               <Paper sx={{ 
                 bgcolor: 'black', 
@@ -466,7 +532,7 @@ const App = () => {
                 onClick={() => setRealTimeLogs([])}
                 sx={{ mt: 1 }}
               >
-                清空输出
+                Clear output
               </Button>
             </CardContent>
           </Card>
@@ -477,18 +543,18 @@ const App = () => {
 
   const renderHiveTab = () => (
     <>
-      {/* Hive连接状态 */}
+      {/* HiveConnection Status */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={1}>
                 <CloudIcon color={status.hiveConnected ? 'success' : 'disabled'} />
-                <Typography variant="h6">Hive连接状态</Typography>
+                <Typography variant="h6">HiveConnection Status</Typography>
                 {status.hiveConnected ? <CheckIcon color="success" /> : <ErrorIcon color="error" />}
               </Box>
               <Chip 
-                label={status.hiveConnected ? '已连接' : '未连接'} 
+                label={status.hiveConnected ? 'Connected' : 'Disconnected'} 
                 color={status.hiveConnected ? 'success' : 'error'} 
                 size="small" 
               />
@@ -500,11 +566,11 @@ const App = () => {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1}>
                 <TerminalIcon color={status.sshuttleRunning ? 'success' : 'disabled'} />
-                <Typography variant="h6">Sshuttle隧道</Typography>
+                <Typography variant="h6">Sshuttle Tunnel</Typography>
                 {status.sshuttleRunning ? <CheckIcon color="success" /> : <ErrorIcon color="error" />}
               </Box>
               <Chip 
-                label={status.sshuttleRunning ? '运行中' : '已停止'} 
+                label={status.sshuttleRunning ? 'Running' : 'Stopped'} 
                 color={status.sshuttleRunning ? 'success' : 'error'} 
                 size="small" 
               />
@@ -513,13 +579,13 @@ const App = () => {
         </Grid>
       </Grid>
 
-      {/* 步骤显示 */}
+      {/* Step display */}
       <StepDisplay steps={hiveSteps} />
 
-      {/* Hive操作 */}
+      {/* Hive operations */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
-          <Typography variant="h5" gutterBottom>🔗 Hive连接操作</Typography>
+          <Typography variant="h5" gutterBottom>🔗 Hive Connection操作</Typography>
           <Box display="flex" flexDirection="column" gap={2}>
             <Button
               variant="contained"
@@ -529,7 +595,7 @@ const App = () => {
               startIcon={loading.hive ? <CircularProgress size={20} /> : <CloudIcon />}
               fullWidth
             >
-              {loading.hive ? '连接中...' : '一键连接到Hive'}
+              {loading.hive ? 'Connecting...' : 'One-Click Connect to Hive'}
             </Button>
             <Button
               variant="outlined"
@@ -538,115 +604,116 @@ const App = () => {
               startIcon={loading.stopSshuttle ? <CircularProgress size={20} /> : <StopIcon />}
               fullWidth
             >
-              {loading.stopSshuttle ? '停止中...' : '停止Sshuttle'}
+              {loading.stopSshuttle ? 'Stopping...' : 'Stop Sshuttle'}
             </Button>
             <Button
               variant="outlined"
               color="secondary"
-              onClick={() => window.open('https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com/')}
+              onClick={() => openExternal('https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com/')}
               startIcon={<CloudIcon />}
               fullWidth
             >
-              🌐 打开Hive控制台
+              🌐 Open Hive Console
             </Button>
+
             <Button
               variant="outlined"
               color="error"
               onClick={async () => {
-                addLog('🔌 正在断开Sshuttle连接...', 'info');
+                addLog('🔌 Disconnecting Sshuttle connection...', 'info');
                 try {
                   const result = await CommandService.stopSshuttle();
                   if (result.success) {
-                    addLog('✅ Sshuttle连接已完全断开', 'success');
+                    addLog('✅ Sshuttle connection completely disconnected', 'success');
                     resetSteps();
                   } else {
-                    addLog(`⚠️ 断开连接时遇到问题: ${result.error}`, 'warning');
+                    addLog(`⚠️ Disconnect problem: ${result.error}`, 'warning');
                   }
                 } catch (error) {
-                  addLog(`断开连接失败: ${error.message}`, 'error');
+                  addLog(`Disconnect failed: ${error.message}`, 'error');
                 }
               }}
               size="small"
               sx={{ mt: 1 }}
             >
-              🔌 断开连接
+              🔌 Disconnect
             </Button>
             <Button
               variant="text"
               size="small"
               onClick={() => {
                 resetSteps();
-                addLog('✅ 步骤状态已重置', 'success');
+                addLog('✅ Step status reset', 'success');
               }}
             >
-              🔄 重置步骤状态
+              🔄 Reset step status
             </Button>
             <Button
               variant="text"
               size="small"
               color="info"
               onClick={async () => {
-                addLog('🔍 开始详细诊断sshuttle状态...', 'info');
+                addLog('🔍 Start Detailed Diagnostics...', 'info');
                 
                 try {
-                  // 手动检查各种进程状态
+                  // 手动检查各种Process Status
                   const manualChecks = [
-                    'test -f /tmp/sshuttle.pid && echo "PID文件存在: $(cat /tmp/sshuttle.pid)" || echo "PID文件不存在"',
-                    'pgrep -f "sshuttle.*bastion" && echo "找到进程" || echo "未找到匹配进程"',
-                    'ps aux | grep sshuttle | grep -v grep || echo "无sshuttle进程"',
-                    'lsof -i :22 | grep sshuttle || echo "无SSH连接"',
-                    'netstat -rn | grep "10.164" || echo "无相关路由"'
+                    'test -f /tmp/sshuttle.pid && echo "PID file exists: $(cat /tmp/sshuttle.pid)" || echo "PID file does not exist"',
+                    'pgrep -f "sshuttle.*bastion" && echo "Process found" || echo "No matching process found"',
+                    'ps aux | grep sshuttle | grep -v grep || echo "No sshuttle process"',
+                    'lsof -i :22 | grep sshuttle || echo "No SSH connection"',
+                    'netstat -rn | grep "10.164" || echo "No related route"'
                   ];
                   
                   for (const [index, cmd] of manualChecks.entries()) {
                     const result = await CommandService.execute(cmd);
-                    addLog(`检查${index + 1}: ${result.stdout || result.stderr || '无输出'}`, 'debug');
+                    addLog(`Check ${index + 1}: ${result.stdout || result.stderr || 'No output'}`, 'debug');
                   }
                   
-                  // 使用新的sshuttle进程检查方法
+                  // Use new sshuttle process check method
                   const processStatus = await CommandService.checkSshuttleProcess();
-                  addLog(`进程状态: 运行=${processStatus.running}, PID=${processStatus.pid || '无'}`, 'info');
+                  addLog(`Process Status: Running=${processStatus.running}, PID=${processStatus.pid || 'No PID'}`, 'info');
                   if (processStatus.details) {
-                    addLog(`进程详情: ${processStatus.details}`, 'debug');
+                    addLog(`Process details: ${processStatus.details}`, 'debug');
                   }
                   
-                  // 执行连通性测试
+                  // Execute connectivity test
                   const connectivityTest = await CommandService.testHiveConnectivity();
                   if (connectivityTest.success) {
-                    addLog('🔍 连通性测试结果:', 'info');
+                    addLog('🔍 Connectivity test result:', 'info');
                     connectivityTest.tests.forEach(test => {
                       addLog(`  ${test.name}: ${test.message}`, test.success ? 'success' : 'warning');
                     });
                   } else {
-                    addLog(`连通性测试失败: ${connectivityTest.error}`, 'error');
+                    addLog(`Connectivity test failed: ${connectivityTest.error}`, 'error');
                   }
                   
-                  // 尝试手动启动sshuttle（如果当前没有运行）
+                  // Try to manually start sshuttle (if not running)
                   if (!processStatus.running) {
-                    addLog('🚀 检测到进程未运行，尝试手动启动...', 'info');
+                    addLog('🚀 Process not running, trying to manually start...', 'info');
                     const manualStart = await CommandService.execute(
-                      'screen -dmS sshuttle-session bash -c \'sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16\' && echo "启动命令已执行"',
+                      'screen -dmS sshuttle-session bash -c \'sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16\' && echo "启动命令已Execute"',
                       { timeout: 10000 }
                     );
-                    addLog(`手动启动结果: ${manualStart.success ? '成功' : '失败'} - ${manualStart.stdout || manualStart.stderr}`, 
+                    addLog(`Manual start result: ${manualStart.success ? 'Success' : 'Failed'} - ${manualStart.stdout || manualStart.stderr}`, 
                            manualStart.success ? 'success' : 'error');
                     
-                    // 检查启动后状态
+                    // Check after start status
                     if (manualStart.success) {
                       await new Promise(resolve => setTimeout(resolve, 3000));
                       const afterStart = await CommandService.checkSshuttleProcess();
-                      addLog(`启动后状态: 运行=${afterStart.running}, PID=${afterStart.pid || '无'}`, 'info');
+                      addLog(`After start status: Running=${afterStart.running}, PID=${afterStart.pid || 'No PID'}`, 'info');
                     }
                   }
                   
                 } catch (error) {
-                  addLog(`诊断过程出错: ${error.message}`, 'error');
+                  addLog(`Diagnostics process error: ${error.message}`, 'error');
                 }
                 
-                addLog('📋 诊断完成', 'success');
+                addLog('📋 Diagnostics completed', 'success');
               }}
             >
-              🩺 详细诊断
+              🩺 Detailed Diagnostics
             </Button>
           </Box>
         </CardContent>
@@ -656,18 +723,18 @@ const App = () => {
 
   const renderBackendTestTab = () => (
     <>
-      {/* Backend测试状态 */}
+      {/* Backend test status */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" gap={1}>
                 <SettingsIcon color={status.ocmLoggedIn ? 'success' : 'disabled'} />
-                <Typography variant="h6">OCM登录</Typography>
+                <Typography variant="h6">OCM Login</Typography>
                 {status.ocmLoggedIn ? <CheckIcon color="success" /> : <ErrorIcon color="error" />}
               </Box>
               <Chip 
-                label={status.ocmLoggedIn ? '已登录' : '未登录'} 
+                label={status.ocmLoggedIn ? 'Logged In' : 'Not Logged In'} 
                 color={status.ocmLoggedIn ? 'success' : 'error'} 
                 size="small" 
               />
@@ -683,7 +750,7 @@ const App = () => {
                 {status.hiveKubeconfig ? <CheckIcon color="success" /> : <ErrorIcon color="error" />}
               </Box>
               <Chip 
-                label={status.hiveKubeconfig ? '可用' : '不可用'} 
+                label={status.hiveKubeconfig ? 'Available' : 'Not Available'} 
                 color={status.hiveKubeconfig ? 'success' : 'error'} 
                 size="small" 
               />
@@ -692,12 +759,12 @@ const App = () => {
         </Grid>
       </Grid>
 
-      {/* Backend测试操作 */}
+      {/* Backend test operations */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h5" gutterBottom>⚙️ 环境配置</Typography>
+              <Typography variant="h5" gutterBottom>⚙️ Environment Configuration</Typography>
               <Box display="flex" flexDirection="column" gap={2}>
                 <Button
                   variant="contained"
@@ -707,7 +774,7 @@ const App = () => {
                   startIcon={loading.testEnv ? <CircularProgress size={20} /> : <SettingsIcon />}
                   fullWidth
                 >
-                  {loading.testEnv ? '配置中...' : '配置测试环境'}
+                  {loading.testEnv ? 'Configuring...' : 'Configure Test Environment'}
                 </Button>
                 <Button
                   variant="outlined"
@@ -716,7 +783,7 @@ const App = () => {
                   startIcon={loading.ocmToken ? <CircularProgress size={20} /> : <RefreshIcon />}
                   fullWidth
                 >
-                  {loading.ocmToken ? '刷新中...' : '刷新OCM Token'}
+                  {loading.ocmToken ? 'Refreshing...' : 'Refresh OCM Token'}
                 </Button>
               </Box>
             </CardContent>
@@ -725,10 +792,10 @@ const App = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
-              <Typography variant="h5" gutterBottom>📁 配置管理</Typography>
+              <Typography variant="h5" gutterBottom>📁 Configuration Management</Typography>
               <Box display="flex" flexDirection="column" gap={2}>
                 <TextField
-                  label="Hive Kubeconfig路径"
+                  label="Hive Kubeconfig Path"
                   value={hiveKubeconfigPath}
                   onChange={(e) => setHiveKubeconfigPath(e.target.value)}
                   fullWidth
@@ -741,7 +808,7 @@ const App = () => {
                   startIcon={<CodeIcon />}
                   fullWidth
                 >
-                  🔑 获取Red Hat Token
+                  🔑 Get Red Hat Token
                 </Button>
               </Box>
             </CardContent>
@@ -753,25 +820,25 @@ const App = () => {
 
   const renderSettingsTab = () => (
     <>
-      {/* 安全警告 */}
+      {/* Security Warning */}
       <Alert severity="warning" sx={{ mb: 3 }}>
         <Typography variant="body2">
-          ⚠️ <strong>安全提示</strong>：密码将加密存储在本地，仅用于自动化连接。建议定期更换密码。
+          ⚠️ <strong>Security Warning</strong>：Passwords are encrypted and stored locally, only used for automated connections. It is recommended to change passwords regularly.
         </Typography>
       </Alert>
 
-      {/* 密码配置 */}
+      {/* Password configuration */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h5" gutterBottom>
                 <LockIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                系统密码配置
+                System Password Configuration
               </Typography>
               <Box display="flex" flexDirection="column" gap={2}>
                 <TextField
-                  label="Sudo密码（电脑密码）"
+                  label="Sudo Password (Computer Password)"
                   type={showPasswords.sudo ? 'text' : 'password'}
                   value={settings.sudoPassword}
                   onChange={(e) => setSettings(prev => ({ ...prev, sudoPassword: e.target.value }))}
@@ -786,10 +853,10 @@ const App = () => {
                       </IconButton>
                     )
                   }}
-                  helperText="用于执行sudo命令的系统密码"
+                  helperText="System password used to execute sudo command"
                 />
                 <TextField
-                  label="SSH私钥密码（Passphrase）"
+                  label="SSH Private Key Password（Passphrase）"
                   type={showPasswords.ssh ? 'text' : 'password'}
                   value={settings.sshPassphrase}
                   onChange={(e) => setSettings(prev => ({ ...prev, sshPassphrase: e.target.value }))}
@@ -804,7 +871,7 @@ const App = () => {
                       </IconButton>
                     )
                   }}
-                  helperText="SSH私钥文件的解锁密码"
+                  helperText="SSH private key file unlock password"
                 />
               </Box>
             </CardContent>
@@ -815,12 +882,12 @@ const App = () => {
             <CardContent>
               <Typography variant="h5" gutterBottom>
                 <KeyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                自动化设置
+                Automation Settings
               </Typography>
               <Box display="flex" flexDirection="column" gap={2}>
                 <Box>
                   <Typography variant="body1" gutterBottom>
-                    自动认证选项
+                    Auto authentication options
                   </Typography>
                   <Box display="flex" flexDirection="column" gap={1}>
                     <Box display="flex" alignItems="center">
@@ -831,7 +898,7 @@ const App = () => {
                         style={{ marginRight: 8 }}
                       />
                       <Typography variant="body2">
-                        启用自动认证（推荐）
+                        Enable auto authentication (recommended)
                       </Typography>
                     </Box>
                     <Box display="flex" alignItems="center">
@@ -842,7 +909,7 @@ const App = () => {
                         style={{ marginRight: 8 }}
                       />
                       <Typography variant="body2">
-                        记住密码（本地加密存储）
+                        Remember passwords (local encrypted storage)
                       </Typography>
                     </Box>
                   </Box>
@@ -851,14 +918,14 @@ const App = () => {
                   variant="contained"
                   color="primary"
                   onClick={() => {
-                    // 保存设置并验证
+                    // Save settings and verify
                     localStorage.setItem('fleetBuddySettings', JSON.stringify(settings));
-                    addLog('设置已保存', 'success');
-                    addLog(`调试: autoAuth=${settings.autoAuth}, 有sudo密码=${!!settings.sudoPassword}, 有ssh密码=${!!settings.sshPassphrase}`, 'info');
+                    addLog('Settings saved', 'success');
+                    addLog(`Debug: autoAuth=${settings.autoAuth}, has sudo password=${!!settings.sudoPassword}, has ssh password=${!!settings.sshPassphrase}`, 'info');
                   }}
                   fullWidth
                 >
-                  💾 保存设置
+                  💾 Save settings
                 </Button>
                 <Button
                   variant="outlined"
@@ -871,11 +938,11 @@ const App = () => {
                       rememberPasswords: false
                     });
                     localStorage.removeItem('fleetBuddySettings');
-                    addLog('设置已清空', 'info');
+                    addLog('Settings cleared', 'info');
                   }}
                   fullWidth
                 >
-                  🗑️ 清空所有设置
+                  🗑️ Clear all settings
                 </Button>
               </Box>
             </CardContent>
@@ -883,16 +950,16 @@ const App = () => {
         </Grid>
       </Grid>
 
-      {/* SSH密钥信息 */}
+      {/* SSH Key Information */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
-            🔑 SSH密钥信息
+            🔑 SSH Key Information
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <Typography variant="body2" sx={{ color: 'grey.400' }}>
-                私钥路径: <code>/Users/chlu/.ssh/id_rsa</code>
+                Private Key Path: <code>/Users/chlu/.ssh/id_rsa</code>
               </Typography>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -900,9 +967,9 @@ const App = () => {
                   variant="outlined"
                   size="small"
                   onClick={async () => {
-                    // 测试Sudo认证
-                    addLog('🧪 开始Sudo认证测试...', 'info');
-                    addLog(`当前设置: autoAuth=${settings.autoAuth}, 有sudo密码=${!!settings.sudoPassword}`, 'info');
+                    // Test Sudo authentication
+                    addLog('🧪 Start Sudo authentication test...', 'info');
+                    addLog(`Current settings: autoAuth=${settings.autoAuth}, has sudo password=${!!settings.sudoPassword}`, 'info');
                     
                     const authOptions = {
                       timeout: 30000,
@@ -916,31 +983,31 @@ const App = () => {
                     
                     try {
                       const result = await CommandService.executeWithRealTimeOutput(
-                        'sudo echo "Sudo测试成功"',
+                        'sudo echo "Sudo test success"',
                         null,
                         authOptions
                       );
                       
-                      addLog(`Sudo测试结果: exitCode=${result.exitCode}, success=${result.success}`, 'info');
+                      addLog(`Sudo test result: exitCode=${result.exitCode}, success=${result.success}`, 'info');
                       if (result.success) {
-                        addLog('✅ Sudo认证成功', 'success');
+                        addLog('✅ Sudo authentication success', 'success');
                       } else {
-                        addLog('❌ Sudo认证失败', 'error');
+                        addLog('❌ Sudo authentication failed', 'error');
                       }
                     } catch (error) {
-                      addLog(`Sudo测试出错: ${error.message}`, 'error');
+                      addLog(`Sudo test error: ${error.message}`, 'error');
                     }
                   }}
                 >
-                  🧪 测试Sudo认证
+                  🧪 Test Sudo authentication
                 </Button>
                 <Button
                   variant="outlined"
                   size="small"
                   onClick={async () => {
-                    // 测试SSH连接到GitHub
-                    addLog('🧪 开始SSH连接测试...', 'info');
-                    addLog(`当前设置: autoAuth=${settings.autoAuth}, 有ssh密码=${!!settings.sshPassphrase}`, 'info');
+                    // Test SSH connection to GitHub
+                    addLog('🧪 Start SSH connection test...', 'info');
+                    addLog(`Current settings: autoAuth=${settings.autoAuth}, has ssh password=${!!settings.sshPassphrase}`, 'info');
                   
                   const authOptions = {
                     timeout: 30000,
@@ -953,7 +1020,7 @@ const App = () => {
                   };
                   
                   try {
-                    // 使用expect脚本自动输入SSH密码
+                    // Use expect script to automatically input SSH password
                     const expectScript = `
 expect << 'EOF'
 set timeout 30
@@ -964,15 +1031,15 @@ expect {
     exp_continue
   }
   "successfully authenticated" {
-    puts "SSH认证成功"
+    puts "SSH authentication success"
     exit 0
   }
   "Permission denied" {
-    puts "SSH认证失败"
+    puts "SSH authentication failed"
     exit 1
   }
   timeout {
-    puts "SSH连接超时"
+    puts "SSH connection timeout"
     exit 2
   }
 }
@@ -985,25 +1052,25 @@ EOF
                       { ...authOptions, autoAuth: false } // 不需要自动认证，expect处理
                     );
                     
-                    addLog(`SSH测试结果: exitCode=${result.exitCode}, success=${result.success}`, 'info');
-                    addLog(`stdout: ${result.stdout || '无'}`, 'info');
-                    addLog(`stderr: ${result.stderr || '无'}`, 'info');
+                    addLog(`SSH test result: exitCode=${result.exitCode}, success=${result.success}`, 'info');
+                    addLog(`stdout: ${result.stdout || 'No output'}`, 'info');
+                    addLog(`stderr: ${result.stderr || 'No output'}`, 'info');
                     
                     if (result.success || (result.stderr && result.stderr.includes('successfully authenticated'))) {
-                      addLog('✅ SSH密钥认证成功 - GitHub连接正常', 'success');
+                      addLog('✅ SSH key authentication success - GitHub connection normal', 'success');
                     } else if (result.stderr && result.stderr.includes('Permission denied')) {
-                      addLog('❌ SSH密钥认证失败 - 权限被拒绝', 'error');
+                      addLog('❌ SSH key authentication failed - Permission denied', 'error');
                     } else if (result.stderr && result.stderr.includes('passphrase')) {
-                      addLog('⚠️ 检测到密码提示，自动认证可能未工作', 'error');
+                      addLog('⚠️ Password prompt detected, automatic authentication may not be working', 'error');
                     } else {
-                      addLog('ℹ️ SSH测试完成，请查看详细输出', 'info');
+                      addLog('ℹ️ SSH test completed, please check detailed output', 'info');
                     }
                   } catch (error) {
-                    addLog(`SSH连接测试出错: ${error.message}`, 'error');
+                    addLog(`SSH connection test error: ${error.message}`, 'error');
                   }
                 }}
               >
-                🧪 测试SSH连接
+                🧪 Test SSH connection
               </Button>
             </Grid>
           </Grid>
@@ -1027,7 +1094,7 @@ EOF
               🚀 Fleet Buddy
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', mt: 1 }}>
-              OSD工具集
+              OSD Toolset
             </Typography>
           </Box>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
@@ -1053,8 +1120,8 @@ EOF
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CloudIcon />
                   <Box>
-                    <Typography variant="body1">Hive连接</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>网络连接和隧道</Typography>
+                    <Typography variant="body1">Hive Connection</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.7 }}>Network connection and tunnel</Typography>
                   </Box>
                 </Box>
               }
@@ -1065,7 +1132,7 @@ EOF
                   <SettingsIcon />
                   <Box>
                     <Typography variant="body1">Backend Test</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>环境配置和测试</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.7 }}>Environment configuration and test</Typography>
                   </Box>
                 </Box>
               }
@@ -1075,8 +1142,8 @@ EOF
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <SecurityIcon />
                   <Box>
-                    <Typography variant="body1">应用设置</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.7 }}>密码和安全配置</Typography>
+                    <Typography variant="body1">App Settings</Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.7 }}>Password and security configuration</Typography>
                   </Box>
                 </Box>
               }
@@ -1087,43 +1154,142 @@ EOF
         {/* 主内容区域 */}
         <Box sx={{ flex: 1, p: 3 }}>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mb: 3, textAlign: 'center' }}>
-            💡 提示：关闭窗口后应用会保持在菜单栏运行，右键菜单栏图标可快速访问功能
+            💡 Tip: After closing the window, the application will remain running in the menu bar, and the right-click menu bar icon can quickly access the function
           </Typography>
 
           {activeTab === 0 && renderHiveTab()}
           {activeTab === 1 && renderBackendTestTab()}
           {activeTab === 2 && renderSettingsTab()}
 
-          {/* 通用操作 */}
+          {/* API Token section */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography variant="h5" gutterBottom>🛠️ 自定义操作</Typography>
-                  <Box display="flex" gap={2}>
-                    <Button
-                      variant="contained"
-                      onClick={openCustomCommand}
-                      startIcon={<TerminalIcon />}
-                      fullWidth
-                    >
-                      执行自定义命令
-                    </Button>
-                    <Tooltip title="刷新状态">
-                      <IconButton onClick={checkAllStatus} color="primary">
-                        <RefreshIcon />
-                      </IconButton>
-                    </Tooltip>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h5">🔑 OpenShift API Token</Typography>
+                    <Box display="flex" gap={1}>
+                      <Button
+                        variant="contained"
+                        color="info"
+                        onClick={getApiToken}
+                        disabled={loading.getToken || !status.sshuttleRunning}
+                        startIcon={loading.getToken ? <CircularProgress size={20} /> : <VpnKeyIcon />}
+                        size="small"
+                      >
+                        {loading.getToken ? 'Getting...' : 'Get Token'}
+                      </Button>
+                      <Tooltip title="Refresh Status">
+                        <IconButton onClick={checkAllStatus} color="primary" size="small">
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Box>
+                  
+                  {!apiTokenData ? (
+                    <Box textAlign="center" py={3}>
+                      <Typography variant="body1" color="textSecondary">
+                        {!status.sshuttleRunning ? 
+                          '⚠️ Please connect the sshuttle tunnel first, then click "Get Token"' : 
+                          'Click the "Get Token" button to get the OpenShift API Token'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} md={6}>
+                          <Paper elevation={1} sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
+                            <Typography variant="subtitle2" gutterBottom color="primary">
+                              🔑 API Token
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontFamily="monospace" 
+                              sx={{ 
+                                wordBreak: 'break-all', 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e0e0e0' }
+                              }}
+                              onClick={() => navigator.clipboard.writeText(apiTokenData.token)}
+                              title="Click to copy"
+                            >
+                              {apiTokenData.token}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <Paper elevation={1} sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
+                            <Typography variant="subtitle2" gutterBottom color="primary">
+                              🌐 Server URL
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontFamily="monospace"
+                              sx={{ 
+                                wordBreak: 'break-all',
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e0e0e0' }
+                              }}
+                              onClick={() => navigator.clipboard.writeText(apiTokenData.serverUrl)}
+                              title="Click to copy"
+                            >
+                              {apiTokenData.serverUrl}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Paper elevation={1} sx={{ p: 2, backgroundColor: '#e8f5e8' }}>
+                            <Typography variant="subtitle2" gutterBottom color="success.main">
+                              📋 oc login Command (Copied to clipboard)
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontFamily="monospace"
+                              sx={{ 
+                                wordBreak: 'break-all',
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#d0edce' }
+                              }}
+                              onClick={() => navigator.clipboard.writeText(apiTokenData.ocLoginCommand)}
+                              title="Click to copy"
+                            >
+                              {apiTokenData.ocLoginCommand}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <Paper elevation={1} sx={{ p: 2, backgroundColor: '#fff3cd' }}>
+                            <Typography variant="subtitle2" gutterBottom color="warning.main">
+                              📋 curl Command
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontFamily="monospace"
+                              sx={{ 
+                                wordBreak: 'break-all',
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#ffeaa7' }
+                              }}
+                              onClick={() => navigator.clipboard.writeText(apiTokenData.curlCommand)}
+                              title="Click to copy"
+                            >
+                              {apiTokenData.curlCommand}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
 
-        {/* 日志面板 */}
+        {/* Log panel */}
         <Card>
           <CardContent>
-            <Typography variant="h5" gutterBottom>📝 操作日志</Typography>
+            <Typography variant="h5" gutterBottom>📝 Operation Log</Typography>
             <Paper sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'rgba(0,0,0,0.3)' }}>
               <List dense>
                 {logs.slice(-10).map((log, index) => (
@@ -1140,7 +1306,7 @@ EOF
                 ))}
                 {logs.length === 0 && (
                   <ListItem>
-                    <ListItemText primary="暂无日志..." sx={{ color: 'rgba(255,255,255,0.5)' }} />
+                    <ListItemText primary="No logs..." sx={{ color: 'rgba(255,255,255,0.5)' }} />
                   </ListItem>
                 )}
               </List>
@@ -1148,9 +1314,9 @@ EOF
           </CardContent>
         </Card>
 
-        {/* 自定义命令对话框 */}
-        <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-          <DialogTitle>执行自定义命令</DialogTitle>
+        {/* Custom command dialog */}
+        {/* <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Execute Custom Command</DialogTitle>
           <DialogContent>
             <TextField
               autoFocus
@@ -1167,10 +1333,10 @@ EOF
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDialogOpen(false)}>取消</Button>
-            <Button onClick={executeCustomCommand} variant="contained">执行</Button>
+            <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={executeCustomCommand} variant="contained">Execute</Button>
           </DialogActions>
-        </Dialog>
+        </Dialog> */}
         </Box>
       </Box>
     </ThemeProvider>

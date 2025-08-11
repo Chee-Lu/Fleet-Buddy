@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Fleet Buddy - Python rumps版本
-轻量级菜单栏应用，用于快速执行OSD开发常用命令
+Fleet Buddy - Python rumps version
+Lightweight menu bar app for quickly executing common OSD development commands
 """
 
 import rumps
@@ -14,108 +14,108 @@ class FleetBuddyApp(rumps.App):
     def __init__(self):
         super(FleetBuddyApp, self).__init__("🚀", title="Fleet Buddy")
         self.menu = [
-            "🔗 连接到Hive",
-            "🔄 刷新OCM Token", 
-            "⚙️ 配置测试环境",
-            None,  # 分隔符
-            "🌐 打开Hive控制台",
-            "🔑 获取Red Hat Token",
+            "🔗 Connect to Hive",
+            "🔄 Refresh OCM Token", 
+            "⚙️ Configure Test Environment",
+            None,  # separator
+            "🌐 Open Hive Console",
+            "🔑 Get Red Hat Token",
             None,
-            "📊 检查状态",
-            "🛠️ 自定义命令",
+            "📊 Check Status",
+            "🛠️ Custom Command",
             None,
-            "📋 显示日志",
-            "⚙️ 设置"
+            "📋 Show Log",
+            "⚙️ Settings"
         ]
         
-        # 状态变量
+        # Status variables
         self.hive_connected = False
         self.ocm_logged_in = False
         self.sshuttle_running = False
         
-        # 配置
+        # Configuration
         self.kubeconfig_path = "/Users/chlu/hive01ue1"
         
-        # 日志
+        # logs
         self.logs = []
         
-        # 启动时检查状态
+        # Check Status when start
         self.check_all_status()
         
-        # 设置定时器，每30秒检查一次状态
+        # Settings定时器，每30secondcheck一次状态   
         self.status_timer = rumps.Timer(self.check_all_status, 30)
         self.status_timer.start()
 
     def log(self, message, level="INFO"):
-        """添加日志"""
+        """Add day log"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {level}: {message}"
         self.logs.append(log_entry)
-        # 只保留最近50条日志
+        # 只保留最近50条day志
         if len(self.logs) > 50:
             self.logs = self.logs[-50:]
         print(log_entry)
 
     def execute_command(self, command, background=False):
-        """执行shell命令"""
+        """executeshellcommand"""
         try:
             if background:
-                # 后台执行
+                # 后台execute
                 subprocess.Popen(command, shell=True, 
                                stdout=subprocess.DEVNULL, 
                                stderr=subprocess.DEVNULL)
-                return True, "命令已在后台启动"
+                return True, "command has been started in the background"
             else:
                 result = subprocess.run(command, shell=True, 
                                       capture_output=True, text=True, 
                                       timeout=30)
                 return result.returncode == 0, result.stdout or result.stderr
         except subprocess.TimeoutExpired:
-            return False, "命令执行超时"
+            return False, "commandexecutetimeout"
         except Exception as e:
             return False, str(e)
 
     def check_process_running(self, process_name):
-        """检查进程是否运行"""
+        """Check Process running"""
         success, output = self.execute_command(f"pgrep -f {process_name}")
         return success and output.strip()
 
     def check_all_status(self, sender=None):
-        """检查所有服务状态"""
-        # 检查sshuttle
+        """Check all services status"""
+        # checksshuttle
         self.sshuttle_running = self.check_process_running("sshuttle")
         
-        # 检查OCM登录
+        # checkOCM登录
         success, _ = self.execute_command("ocm whoami")
         self.ocm_logged_in = success
         
-        # 检查kubeconfig
+        # checkkubeconfig
         kubeconfig_exists = os.path.exists(self.kubeconfig_path)
         
-        # 综合判断Hive连接状态
+        # 综合判断Hiveconnection状态
         self.hive_connected = self.sshuttle_running and self.ocm_logged_in
         
-        # 更新菜单栏图标
+        # Updatemenu栏icon
         if self.hive_connected:
-            self.title = "🟢"  # 绿色表示连接正常
+            self.title = "🟢"  # 绿色表示connection正常
         elif self.sshuttle_running or self.ocm_logged_in:
-            self.title = "🟡"  # 黄色表示部分连接
+            self.title = "🟡"  # 黄色表示部分connection
         else:
-            self.title = "🔴"  # 红色表示未连接
+            self.title = "🔴"  # 红色表示未connection
 
-    @rumps.clicked("🔗 连接到Hive")
+    @rumps.clicked("🔗 Connect to Hive")
     def connect_hive(self, sender):
-        """连接到Hive"""
+        """Connect to Hive"""
         def connect():
-            self.log("开始连接到Hive...")
+            self.log("startConnect to Hive...")
             
-            # 配置路由
+            # Configuration路由
             success, output = self.execute_command("sudo route add -net 10.164.0.0/16 -interface en0")
             if success:
-                self.log("路由配置成功")
+                self.log("Route ConfigurationSuccess")
             else:
-                self.log(f"路由配置失败: {output}", "ERROR")
-                rumps.notification("Fleet Buddy", "连接失败", "路由配置失败")
+                self.log(f"Route Configurationfailed: {output}", "ERROR")
+                rumps.notification("Fleet Buddy", "Connection failed", "Route Configurationfailed")
                 return
             
             # 启动sshuttle
@@ -124,40 +124,40 @@ class FleetBuddyApp(rumps.App):
                 background=True
             )
             if success:
-                self.log("Sshuttle隧道已启动")
-                rumps.notification("Fleet Buddy", "连接成功", "Hive连接已建立")
+                self.log("Sshuttle tunnel has been started")
+                rumps.notification("Fleet Buddy", "Connection successful", "Hiveconnection has been established")
             else:
-                self.log(f"Sshuttle启动失败: {output}", "ERROR")
-                rumps.notification("Fleet Buddy", "连接失败", "Sshuttle启动失败")
+                self.log(f"Sshuttle start failed: {output}", "ERROR")
+                rumps.notification("Fleet Buddy", "Connection failed", "Sshuttle启动failed")
             
-            # 延迟检查状态
+            # 延迟Check Status
             rumps.Timer(self.check_all_status, 3).start()
         
-        # 在后台线程执行以避免阻塞UI
+        # 在后台Threadexecute以避免阻塞UI
         threading.Thread(target=connect, daemon=True).start()
 
-    @rumps.clicked("🔄 刷新OCM Token")
+    @rumps.clicked("🔄 Refresh OCM Token")
     def refresh_token(self, sender):
-        """刷新OCM Token"""
+        """Refresh OCM Token"""
         def refresh():
-            self.log("刷新OCM Token...")
+            self.log("Refresh OCM Token...")
             success, output = self.execute_command("ocm token")
             if success:
-                self.log("OCM Token已刷新")
-                rumps.notification("Fleet Buddy", "Token已刷新", "OCM Token更新成功")
+                self.log("OCM Token已Refresh")
+                rumps.notification("Fleet Buddy", "Token已Refresh", "OCM TokenUpdateSuccess")
             else:
-                self.log(f"Token刷新失败: {output}", "ERROR")
-                rumps.notification("Fleet Buddy", "刷新失败", "OCM Token更新失败")
+                self.log(f"Token refresh failed: {output}", "ERROR")
+                rumps.notification("Fleet Buddy", "Refreshfailed", "OCM TokenUpdatefailed")
             
             self.check_all_status()
         
         threading.Thread(target=refresh, daemon=True).start()
 
-    @rumps.clicked("⚙️ 配置测试环境")
+    @rumps.clicked("⚙️ Configure Test Environment")
     def setup_test_env(self, sender):
-        """配置测试环境"""
+        """Configure Test Environment"""
         def setup():
-            self.log("配置测试环境...")
+            self.log("Configure Test Environment...")
             
             commands = [
                 'export SUPER_ADMIN_USER_TOKEN=$(ocm token)',
@@ -170,55 +170,55 @@ class FleetBuddyApp(rumps.App):
                 success, output = self.execute_command(cmd)
                 if not success:
                     all_success = False
-                    self.log(f"命令执行失败: {cmd} - {output}", "ERROR")
+                    self.log(f"Command execution failed: {cmd} - {output}", "ERROR")
                     break
             
             if all_success:
-                self.log("测试环境配置完成")
-                rumps.notification("Fleet Buddy", "配置完成", "测试环境已就绪")
+                self.log("test environment Configurationfinish")
+                rumps.notification("Fleet Buddy", "Configurationfinish", "test environment is ready")
             else:
-                self.log("测试环境配置失败", "ERROR")
-                rumps.notification("Fleet Buddy", "配置失败", "测试环境配置出错")
+                self.log("test environment Configuration failed", "ERROR")
+                rumps.notification("Fleet Buddy", "Configurationfailed", "test environment Configuration failed")
         
         threading.Thread(target=setup, daemon=True).start()
 
-    @rumps.clicked("🌐 打开Hive控制台")
+    @rumps.clicked("🌐 Open Hive Console")
     def open_hive_console(self, sender):
-        """打开Hive控制台"""
+        """Open Hive Console"""
         url = "https://console-openshift-console.apps.hive01ue1.f7i5.p1.openshiftapps.com/dashboards"
         self.execute_command(f"open {url}")
-        self.log("已打开Hive控制台")
+        self.log("Open Hive Console")
 
-    @rumps.clicked("🔑 获取Red Hat Token")
+    @rumps.clicked("🔑 Get Red Hat Token")
     def open_redhat_token(self, sender):
-        """打开Red Hat Token页面"""
+        """openRed Hat Tokenpage"""
         url = "https://console.redhat.com/openshift/token"
         self.execute_command(f"open {url}")
-        self.log("已打开Red Hat Token页面")
+        self.log("已openRed Hat Tokenpage")
 
-    @rumps.clicked("📊 检查状态")
+    @rumps.clicked("📊 Check Status")
     def show_status(self, sender):
-        """显示当前状态"""
+        """show当前状态"""
         self.check_all_status()
         
-        status_text = f"""Fleet Buddy 状态报告
+        status_text = f"""Fleet Buddy Status Report
         
-🔗 Hive连接: {'✅ 已连接' if self.hive_connected else '❌ 未连接'}
-🌐 Sshuttle: {'✅ 运行中' if self.sshuttle_running else '❌ 已停止'}
-🔑 OCM登录: {'✅ 已登录' if self.ocm_logged_in else '❌ 未登录'}
-📁 Kubeconfig: {'✅ 存在' if os.path.exists(self.kubeconfig_path) else '❌ 不存在'}
+🔗 Hive connection: {'✅ connected' if self.hive_connected else '❌ not connected'}
+🌐 Sshuttle: {'✅ running' if self.sshuttle_running else '❌ stopped'}
+🔑 OCM login: {'✅ logged in' if self.ocm_logged_in else '❌ not logged in'}
+📁 Kubeconfig: {'✅ exists' if os.path.exists(self.kubeconfig_path) else '❌ not exists'}
 
-配置路径: {self.kubeconfig_path}
+Configurationpath: {self.kubeconfig_path}
         """
         
-        rumps.alert("Fleet Buddy 状态", status_text)
+        rumps.alert("Fleet Buddy Status", status_text)
 
-    @rumps.clicked("🛠️ 自定义命令")
+    @rumps.clicked("🛠️ Custom Command")
     def custom_command(self, sender):
-        """执行自定义命令"""
+        """executeCustom Command"""
         response = rumps.Window(
-            message="输入要执行的命令:",
-            title="自定义命令",
+            message="input the command to execute:",
+            title="Custom Command",
             default_text="ocm login --use-auth-code --url=integration",
             cancel=True
         ).run()
@@ -227,37 +227,37 @@ class FleetBuddyApp(rumps.App):
             command = response.text.strip()
             
             def execute():
-                self.log(f"执行自定义命令: {command}")
+                self.log(f"executeCustom Command: {command}")
                 success, output = self.execute_command(command)
                 if success:
-                    self.log(f"命令执行成功: {output}")
-                    rumps.notification("Fleet Buddy", "命令成功", f"已执行: {command}")
+                    self.log(f"commandexecuteSuccess: {output}")
+                    rumps.notification("Fleet Buddy", "commandSuccess", f"execute: {command}")
                 else:
-                    self.log(f"命令执行失败: {output}", "ERROR")
-                    rumps.notification("Fleet Buddy", "命令失败", f"执行失败: {command}")
+                    self.log(f"Command execution failed: {output}", "ERROR")
+                    rumps.notification("Fleet Buddy", "command failed", f"execute failed: {command}")
             
             threading.Thread(target=execute, daemon=True).start()
 
-    @rumps.clicked("📋 显示日志")
+    @rumps.clicked("📋 Show Log")
     def show_logs(self, sender):
-        """显示最近的日志"""
-        recent_logs = self.logs[-10:] if self.logs else ["暂无日志"]
+        """show recent logs"""
+        recent_logs = self.logs[-10:] if self.logs else ["No logs"]
         log_text = "\n".join(recent_logs)
-        rumps.alert("Fleet Buddy 日志", log_text)
+        rumps.alert("Fleet Buddy Logs", log_text)
 
-    @rumps.clicked("⚙️ 设置")
+    @rumps.clicked("⚙️ Settings")
     def settings(self, sender):
-        """设置"""
+        """Settings"""
         response = rumps.Window(
-            message="Kubeconfig文件路径:",
-            title="Fleet Buddy 设置",
+            message="Kubeconfig File path:",
+            title="Fleet Buddy Settings",
             default_text=self.kubeconfig_path,
             cancel=True
         ).run()
         
         if response.clicked and response.text.strip():
             self.kubeconfig_path = response.text.strip()
-            self.log(f"Kubeconfig路径已更新: {self.kubeconfig_path}")
+            self.log(f"Kubeconfig path has been updated: {self.kubeconfig_path}")
 
 if __name__ == "__main__":
     app = FleetBuddyApp()

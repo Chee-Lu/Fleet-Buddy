@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -18,27 +18,27 @@ function createWindow() {
       webSecurity: false
     },
     icon: path.join(__dirname, 'icon.png'),
-    titleBarStyle: 'default', // 使用默认标题栏，确保可以拖拽
-    title: '🚀 Fleet Buddy - OSD工具集',
-    show: false // 初始不显示，通过菜单栏控制
+    titleBarStyle: 'default', // Use default title bar, ensure draggable
+    title: '🚀 Fleet Buddy - OSD Toolset',
+    show: false // Initially hidden, controlled via menu bar
   });
 
   const isDev = !app.isPackaged;
   
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
-    // 开发模式下可以打开开发者工具
+    // 开发模式下canopen开发者工具
     // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
   }
 
-  // 窗口准备好后显示
+  // window准备好后show
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // 关闭到托盘而不是退出
+  // close到托盘而不isexit
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -52,14 +52,14 @@ function createWindow() {
 }
 
 function createTray() {
-  // 创建托盘图标（使用简单的emoji图标）
+  // createTray icon（使用简单的emojiicon）
   const icon = nativeImage.createFromNamedImage('NSComputer');
   tray = new Tray(icon);
   
-  // 托盘提示
-  tray.setToolTip('Fleet Buddy - OSD工具集');
+  // 托盘hint
+  tray.setToolTip('Fleet Buddy - OSD Toolset');
   
-  // 创建托盘菜单
+  // createTray menu
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '🚀 Fleet Buddy',
@@ -67,7 +67,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '📊 显示主界面',
+      label: '📊 show主界面',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -79,21 +79,21 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '🔗 快速连接Hive',
+      label: '🔗 快速connectionHive',
       click: async () => {
         const result = await executeCommand('sudo route add -net 10.164.0.0/16 -interface en0 && nohup sshuttle -r bastion.ci.int.devshift.net 10.164.0.0/16 > /dev/null 2>&1 &');
-        showNotification('Hive连接', result.success ? '连接成功！' : '连接失败');
+        showNotification('Hiveconnection', result.success ? 'connectionsuccessful！' : 'connectionfailed');
       }
     },
     {
-      label: '🔄 刷新OCM Token',
+      label: '🔄 refreshOCM Token',
       click: async () => {
         const result = await executeCommand('ocm token');
-        showNotification('OCM Token', result.success ? 'Token已刷新' : '刷新失败');
+        showNotification('OCM Token', result.success ? 'Token已refresh' : 'refreshfailed');
       }
     },
     {
-      label: '⚙️ 配置测试环境',
+      label: '⚙️ configuretest环境',
       click: async () => {
         const commands = [
           'export SUPER_ADMIN_USER_TOKEN=$(ocm token)',
@@ -108,12 +108,12 @@ function createTray() {
             break;
           }
         }
-        showNotification('测试环境', success ? '配置完成！' : '配置失败');
+        showNotification('test环境', success ? 'configurefinish！' : 'configurefailed');
       }
     },
     { type: 'separator' },
     {
-      label: '🌐 打开Hive控制台',
+      label: '🌐 openHive控制台',
       click: () => {
         require('electron').shell.openExternal('https://console-openshift-console.apps.hive01ue1.f7i5.p1.openshiftapps.com/dashboards');
       }
@@ -126,7 +126,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: '🚪 退出',
+      label: '🚪 exit',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -136,7 +136,7 @@ function createTray() {
   
   tray.setContextMenu(contextMenu);
   
-  // 点击托盘图标显示/隐藏主窗口
+  // 点击Tray iconshow/hide主window
   tray.on('click', () => {
     if (mainWindow) {
       if (mainWindow.isVisible()) {
@@ -151,7 +151,7 @@ function createTray() {
   });
 }
 
-// 执行命令的辅助函数
+// Execute command的辅助function
 async function executeCommand(command) {
   return new Promise((resolve) => {
     exec(command, { shell: '/bin/zsh' }, (error, stdout, stderr) => {
@@ -165,7 +165,7 @@ async function executeCommand(command) {
   });
 }
 
-// 显示系统通知
+// showsystem通知
 function showNotification(title, body) {
   new Notification(title, {
     body: body,
@@ -179,7 +179,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', (e) => {
-  // 在macOS上，保持应用在托盘中运行
+  // 在macOS上，保持application在托盘中running
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -192,15 +192,26 @@ app.on('activate', () => {
   }
 });
 
-// 防止应用被意外退出
+// Prevent accidental app exit
 app.on('before-quit', () => {
   isQuitting = true;
 });
 
-// IPC处理器 - 执行命令
+// 🌐 Open external links
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    // Force open in default browser
+    await shell.openExternal(url, { activate: true });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC处理器 - Execute command
 ipcMain.handle('execute-command', async (event, command, options = {}) => {
   return new Promise((resolve, reject) => {
-    const timeout = options.timeout || 30000; // 默认30秒超时
+    const timeout = options.timeout || 30000; // 默认30secondTimeout
     
     const child = exec(command, { 
       shell: '/bin/zsh',
@@ -208,7 +219,7 @@ ipcMain.handle('execute-command', async (event, command, options = {}) => {
     }, (error, stdout, stderr) => {
       if (error) {
         if (error.code === 'ETIMEDOUT') {
-          resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr });
+          resolve({ success: false, error: `commandexecuteTimeout (${timeout/1000}second)`, stderr });
         } else {
           resolve({ success: false, error: error.message, stderr });
         }
@@ -217,7 +228,7 @@ ipcMain.handle('execute-command', async (event, command, options = {}) => {
       }
     });
 
-    // 实时输出
+    // 实时output
     if (options.realtime && mainWindow) {
       child.stdout?.on('data', (data) => {
         mainWindow.webContents.send('command-output', { type: 'stdout', data: data.toString() });
@@ -230,7 +241,7 @@ ipcMain.handle('execute-command', async (event, command, options = {}) => {
   });
 });
 
-// IPC处理器 - 实时执行命令（支持自动密码输入）
+// IPC处理器 - 实时Execute command（support自动密码input）
 ipcMain.handle('execute-command-realtime', async (event, command, options = {}) => {
   return new Promise((resolve, reject) => {
     const timeout = options.timeout || 30000;
@@ -238,11 +249,11 @@ ipcMain.handle('execute-command-realtime', async (event, command, options = {}) 
     let output = '';
     let errorOutput = '';
     
-    // 🔥 改进的sshuttle支持，使用nohup后台运行
+    // 🔥 Improved sshuttle support, using nohup background execution
     if (options.autoAuth && command.includes('sshuttle') && passwords.ssh && passwords.sudo) {
       const { spawn } = require('child_process');
       
-      // 使用expect脚本，同时处理SSH密码和sudo密码
+      // Use expect script to handle both SSH password and sudo password
       const cleanCommand = command.replace(/'/g, "\\'");
       const expectScript = `
 expect << 'EOF'
@@ -290,7 +301,7 @@ EOF
         env: { ...process.env, TERM: 'xterm-256color' }
       });
 
-      // 处理输出
+      // 处理output
       child.stdout?.on('data', (data) => {
         const text = data.toString();
         output += text;
@@ -307,16 +318,16 @@ EOF
         }
       });
 
-      // 设置超时
+      // settingsTimeout
       const timer = setTimeout(() => {
         child.kill('SIGTERM');
-        resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+        resolve({ success: false, error: `commandexecuteTimeout (${timeout/1000}second)`, stderr: errorOutput });
       }, timeout);
 
       child.on('close', (code) => {
         clearTimeout(timer);
         resolve({ 
-          success: code === 0 || code === null, // daemon进程可能在后台运行
+          success: code === 0 || code === null, // daemonprocessmay在后台running
           stdout: output, 
           stderr: errorOutput,
           exitCode: code
@@ -331,11 +342,11 @@ EOF
       return;
     }
     
-    // 对于sudo命令，使用-S标志和stdin直接提供密码
+    // 对于sudocommand，使用-S标志和stdin直接提供密码
     if (options.autoAuth && passwords.sudo && command.includes('sudo') && !command.includes('sshuttle')) {
       const { spawn } = require('child_process');
       
-      // 将sudo命令转换为使用-S标志
+      // 将sudocommand转换为使用-S标志
       const modifiedCommand = command.replace('sudo ', 'sudo -S ');
       
       const child = spawn('/bin/zsh', ['-c', modifiedCommand], {
@@ -343,11 +354,11 @@ EOF
         env: { ...process.env }
       });
 
-      // 立即向stdin写入密码
+      // 立即向stdinwrite密码
       child.stdin.write(passwords.sudo + '\n');
       child.stdin.end();
 
-      // 处理输出
+      // 处理output
       child.stdout?.on('data', (data) => {
         const text = data.toString();
         output += text;
@@ -364,10 +375,10 @@ EOF
         }
       });
 
-      // 设置超时
+      // settingsTimeout
       const timer = setTimeout(() => {
         child.kill('SIGTERM');
-        resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+        resolve({ success: false, error: `commandexecuteTimeout (${timeout/1000}second)`, stderr: errorOutput });
       }, timeout);
 
       child.on('close', (code) => {
@@ -388,7 +399,7 @@ EOF
       return;
     }
     
-    // 对于其他命令，使用普通方法
+    // 对于其他command，使用普通method
     const { spawn } = require('child_process');
     const child = spawn('/bin/zsh', ['-c', command], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -413,10 +424,10 @@ EOF
       }
     });
 
-    // 设置超时
+    // settingsTimeout
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-      resolve({ success: false, error: `命令执行超时 (${timeout/1000}秒)`, stderr: errorOutput });
+      resolve({ success: false, error: `commandexecuteTimeout (${timeout/1000}second)`, stderr: errorOutput });
     }, timeout);
 
     child.on('close', (code) => {
@@ -436,7 +447,7 @@ EOF
   });
 });
 
-// IPC处理器 - 检查进程状态
+// IPC处理器 - Check process status
 ipcMain.handle('check-process', async (event, processName) => {
   return new Promise((resolve, reject) => {
     exec(`pgrep -f "${processName}"`, (error, stdout, stderr) => {
@@ -445,7 +456,7 @@ ipcMain.handle('check-process', async (event, processName) => {
   });
 });
 
-// IPC处理器 - 读取文件
+// IPC处理器 - readfile
 ipcMain.handle('read-file', async (event, filePath) => {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
@@ -455,7 +466,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
-// IPC处理器 - 写入文件
+// IPC处理器 - writefile
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
     fs.writeFileSync(filePath, content, 'utf8');

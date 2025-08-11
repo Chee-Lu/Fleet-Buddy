@@ -21,26 +21,26 @@ class CommandService {
     }
   }
 
-  // 增强的sshuttle进程检测
+  // Enhanced sshuttle process detection
   static async checkSshuttleProcess() {
     try {
-      console.log('🔍 开始检测sshuttle进程...');
+      console.log('🔍 Start detecting sshuttle process...');
       
-      // 方法1: 检查PID文件
+      // method1: Check PID file
       const pidFileCheck = await this.execute('test -f /tmp/sshuttle.pid && cat /tmp/sshuttle.pid');
-      console.log(`PID文件检查: success=${pidFileCheck.success}, output="${pidFileCheck.stdout?.trim()}"`);
+      console.log(`PIDfilecheck: success=${pidFileCheck.success}, output="${pidFileCheck.stdout?.trim()}"`);
       
-      // 方法2: 检查进程名
+      // method2: Check process名
       const processCheck = await this.execute('pgrep -f "sshuttle.*bastion"');
-      console.log(`进程名检查: success=${processCheck.success}, output="${processCheck.stdout?.trim()}"`);
+      console.log(`process名check: success=${processCheck.success}, output="${processCheck.stdout?.trim()}"`);
       
-      // 方法3: 检查详细进程信息
+      // method3: check详细processinfo
       const detailCheck = await this.execute('ps aux | grep "sshuttle.*bastion" | grep -v grep');
-      console.log(`详细进程检查: success=${detailCheck.success}, found=${!!detailCheck.stdout?.trim()}`);
+      console.log(`详细Process check: success=${detailCheck.success}, found=${!!detailCheck.stdout?.trim()}`);
       
-      // 方法4: 检查所有sshuttle进程（更宽泛的搜索）
+      // method4: check所havesshuttleprocess（更宽泛的search）
       const broadCheck = await this.execute('ps aux | grep sshuttle | grep -v grep');
-      console.log(`宽泛检查: success=${broadCheck.success}, found=${!!broadCheck.stdout?.trim()}`);
+      console.log(`宽泛check: success=${broadCheck.success}, found=${!!broadCheck.stdout?.trim()}`);
       
       const hasPidFile = pidFileCheck.success && pidFileCheck.stdout?.trim();
       const hasProcess = processCheck.success && processCheck.stdout?.trim();
@@ -49,7 +49,7 @@ class CommandService {
       
       const isRunning = hasPidFile || hasProcess || hasDetail || hasBroad;
       
-      console.log(`检测结果汇总: PID文件=${!!hasPidFile}, 进程名=${!!hasProcess}, 详细=${!!hasDetail}, 宽泛=${!!hasBroad}, 最终=${isRunning}`);
+      console.log(`检测result汇总: PIDfile=${!!hasPidFile}, process名=${!!hasProcess}, 详细=${!!hasDetail}, 宽泛=${!!hasBroad}, 最终=${isRunning}`);
       
       return {
         running: isRunning,
@@ -62,7 +62,7 @@ class CommandService {
     }
   }
 
-  // 通用进程检测
+  // 通用process检测
   static async checkProcess(processName) {
     try {
       if (processName === 'sshuttle') {
@@ -97,7 +97,7 @@ class CommandService {
     }
   }
 
-  // 🚀 终极简化版本 - 直接启动sshuttle保持运行
+  // 🚀 Ultimate simplified version - directly start sshuttle and keep running
   static async connectToHive(passwords = {}) {
     const results = {
       steps: [],
@@ -106,35 +106,35 @@ class CommandService {
     };
 
     try {
-      // 步骤1: 彻底清理
-      console.log('🧹 彻底清理环境...');
+      // step1: 彻底清理
+      console.log('🧹 Thoroughly clean environment...');
       await this.execute('pkill -f sshuttle 2>/dev/null || true');
       await this.execute('pkill -f expect 2>/dev/null || true');
       await this.execute('rm -f /tmp/sshuttle* /tmp/start_sshuttle.sh 2>/dev/null || true');
       
       results.steps.push({
-        name: '清理环境',
+        name: 'Clean environment',
         success: true,
-        message: '所有相关进程已清理'
+        message: 'All related processes cleaned'
       });
 
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // 步骤2: 配置路由
-      console.log('🔗 配置路由...');
+      // step2: Configure route
+      console.log('🔗 Configure route...');
       const routeCmd = `echo "${passwords.sudo}" | sudo -S route add -net 10.164.0.0/16 -interface en0 2>/dev/null || true`;
       await this.execute(routeCmd);
       
       results.steps.push({
-        name: '配置网络路由',
+        name: 'Configure network route',
         success: true,
-        message: '路由配置完成'
+        message: 'Route configuration completed'
       });
 
-      // 步骤3: 直接启动 - 最简单的方法
+      // step3: Direct startup - simplest method
       console.log('🚀 直接启动sshuttle...');
       
-      // 创建最简单的启动命令
+      // Create the simplest startup command
       const sshuttleCmd = `
 nohup bash -c '
 expect << "EXPECT_END"
@@ -177,26 +177,26 @@ echo $! > /tmp/sshuttle.pid
 sleep 5
 `;
 
-      // 执行启动命令
+      // Execute startup command
       const startResult = await this.execute(sshuttleCmd.trim(), { timeout: 15000 });
       
       results.steps.push({
-        name: '启动sshuttle隧道',
+        name: 'Start sshuttle tunnel',
         success: true,
-        message: 'Sshuttle启动命令已执行'
+        message: 'Sshuttle startup command executed'
       });
 
-      // 步骤4: 等待并验证
-      console.log('🔍 等待连接建立...');
+      // step4: Wait and verify
+      console.log('🔍 Waiting for connection establishment...');
       
-      // 等待连接建立
+      // Waiting for connection establishment
       await new Promise(resolve => setTimeout(resolve, 8000));
       
-      // 检查进程
+      // Check process
       const processCheck = await this.execute('ps aux | grep sshuttle | grep -v grep');
       const pidCheck = await this.execute('test -f /tmp/sshuttle.pid && cat /tmp/sshuttle.pid');
       
-      // 检查网络
+      // Check network
       const networkTest = await this.execute(
         'curl -s --connect-timeout 5 --max-time 10 -I http://10.164.1.1 2>/dev/null || echo "FAILED"',
         { timeout: 15000 }
@@ -208,23 +208,23 @@ sleep 5
       
       if (hasProcess || hasPid || networkOk) {
         results.steps.push({
-          name: '验证连接状态',
+          name: 'Verify connection status',
           success: true,
           message: networkOk ? 
-            '🎉 网络连通，隧道工作正常！' : 
-            `✅ 进程运行中 ${hasPid ? 'PID: ' + pidCheck.stdout.trim() : ''}`
+            '🎉 Network connected, tunnel working normally！' : 
+            `✅ Process running ${hasPid ? 'PID: ' + pidCheck.stdout.trim() : ''}`
         });
         results.success = true;
       } else {
-        // 检查日志
-        const logCheck = await this.execute('tail -20 /tmp/sshuttle.log 2>/dev/null || echo "无日志"');
-        throw new Error(`连接建立失败。日志信息: ${logCheck.stdout}`);
+        // Check log
+        const logCheck = await this.execute('tail -20 /tmp/sshuttle.log 2>/dev/null || echo "noneday志"');
+        throw new Error(`Connection establishment failed。Log information: ${logCheck.stdout}`);
       }
 
     } catch (error) {
       results.error = error.message;
       results.steps.push({
-        name: '连接失败',
+        name: 'Connection failed',
         success: false,
         message: error.message
       });
@@ -233,53 +233,152 @@ sleep 5
     return results;
   }
 
-  // 🛑 停止sshuttle连接
+  // 🛑 Stop sshuttle connection
   static async stopSshuttle() {
     try {
-      // 方法1: 通过PID文件停止主管理进程
+      // Method 1: Stop main management process via PID file
       const pidResult = await this.execute('test -f /tmp/sshuttle.pid && cat /tmp/sshuttle.pid');
       if (pidResult.success && pidResult.stdout.trim()) {
         const pid = pidResult.stdout.trim();
         await this.execute(`kill ${pid}`);
       }
 
-      // 方法2: 停止所有sshuttle相关进程
+      // Method 2: Stop all sshuttle related processes
       await this.execute('pkill -f sshuttle 2>/dev/null || true');
       
-      // 方法3: 停止expect管理进程
+      // Method 3: Stop expect management process
       await this.execute('pkill -f expect 2>/dev/null || true');
       
-      // 方法4: 清理sudo进程（如果有的话）
+      // Method 4: Clean up sudo processes (if any)
       await this.execute('sudo pkill -f "sshuttle.*firewall" 2>/dev/null || true');
       
-      // 方法5: 清理相关文件
+      // Method 5: Clean up related files
       await this.execute('rm -f /tmp/sshuttle.log /tmp/sshuttle.pid 2>/dev/null || true');
       
-      // 等待进程停止
+      // Wait for process to stop
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      return { success: true, message: 'Sshuttle隧道已完全停止' };
+      return { success: true, message: 'Sshuttle tunnel completely stopped' };
     } catch (error) {
       return { success: false, error: error.message };
     }
   }
 
-  // 🔍 检查网络连通性
+  // 🔑 Get OpenShift API Token
+  static async getOpenShiftToken() {
+    try {
+      // Method 1: Try to get current token from console
+      console.log('🔍 Try to get Token from OpenShift...');
+      
+      // First check if oc command line tool exists
+      const ocCheckResult = await this.execute('which oc');
+      
+      if (ocCheckResult.success) {
+        // Try to get current token
+        const whoamiResult = await this.execute('oc whoami --show-token 2>/dev/null');
+        if (whoamiResult.success && whoamiResult.stdout.trim()) {
+          const token = whoamiResult.stdout.trim();
+          const serverResult = await this.execute('oc whoami --show-server 2>/dev/null');
+          const serverUrl = serverResult.success ? serverResult.stdout.trim() : 'https://api.hivei01ue1.f7i5.p1.openshiftapps.com:6443';
+          
+          return {
+            success: true,
+            token: token,
+            serverUrl: serverUrl,
+            ocLoginCommand: `oc login --token=${token} --server=${serverUrl}`,
+            curlCommand: `curl -H "Authorization: Bearer ${token}" "${serverUrl}/apis/user.openshift.io/v1/users/~"`,
+            source: 'existing_session'
+          };
+        }
+      }
+      
+      // method2: Try to get token using browser session
+      const tokenUrls = [
+        'https://oauth-openshift.apps.hivei01ue1.f7i5.p1.openshiftapps.com/oauth/token/request',
+        'https://oauth-openshift.apps.hivei01ue1.f7i5.p1.openshiftapps.com/oauth/token/display'
+      ];
+      
+      for (const tokenUrl of tokenUrls) {
+        const result = await this.execute(
+          `curl -s --connect-timeout 8 --max-time 15 -L "${tokenUrl}"`,
+          { timeout: 20000 }
+        );
+
+        if (result.success && result.stdout) {
+          const content = result.stdout;
+          
+          // Extract API token
+          const tokenMatches = [
+            /sha256~[A-Za-z0-9_-]+/g,
+            /[a-zA-Z0-9]{40,}/g,
+            /token["\s]*[:=]["\s]*([A-Za-z0-9_-]+)/gi
+          ];
+          
+          let apiToken = null;
+          for (const regex of tokenMatches) {
+            const matches = content.match(regex);
+            if (matches) {
+              apiToken = matches[0];
+              break;
+            }
+          }
+          
+          // Extract server URL
+          const serverMatch = content.match(/--server=([^\s"']+)/) || 
+                              content.match(/server["\s]*[:=]["\s]*["']([^"']+)["']/);
+          const serverUrl = serverMatch ? serverMatch[1] : 'https://api.hivei01ue1.f7i5.p1.openshiftapps.com:6443';
+          
+          if (apiToken && apiToken.length > 10) {
+            return {
+              success: true,
+              token: apiToken,
+              serverUrl: serverUrl,
+              ocLoginCommand: `oc login --token=${apiToken} --server=${serverUrl}`,
+              curlCommand: `curl -H "Authorization: Bearer ${apiToken}" "${serverUrl}/apis/user.openshift.io/v1/users/~"`,
+              source: 'web_extraction',
+              rawContent: content.substring(0, 500) + '...'
+            };
+          }
+        }
+      }
+      
+      // method3: Return manual retrieval instructions
+      return {
+        success: false,
+        error: 'Unable to automatically get Token, please manually visit Token page',
+        manual: true,
+        instructions: {
+          step1: 'Open Hive console in browser and login',
+          step2: 'Visit: https://oauth-openshift.apps.hivei01ue1.f7i5.p1.openshiftapps.com/oauth/token/display',
+          step3: 'Copy the displayed API token',
+          step4: 'Or run in terminal: oc whoami --show-token'
+        }
+      };
+      
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // 🔍 Check network connectivity
   static async testHiveConnectivity() {
     try {
       const tests = [
         {
-          name: 'HTTP连接测试',
+          name: 'HTTP Connection Test',
           command: 'curl -s --connect-timeout 3 --max-time 8 -I http://10.164.1.1',
           timeout: 12000
         },
         {
-          name: 'Hive控制台访问',
+          name: 'Hive控制台Visit',
           command: 'curl -s --connect-timeout 8 --max-time 12 -I https://console-openshift-console.apps.hivei01ue1.f7i5.p1.openshiftapps.com',
           timeout: 15000
         },
         {
-          name: '路由状态检查',
+          name: 'Route Status Check',
           command: 'netstat -rn | grep "10.164" && echo "路由正常"',
           timeout: 5000
         }
@@ -291,7 +390,7 @@ sleep 5
         results.push({
           name: test.name,
           success: result.success,
-          message: result.success ? '✅ 连通正常' : '❌ 连接失败'
+          message: result.success ? '✅ Connected normally' : '❌ Connection failed'
         });
       }
 
@@ -301,7 +400,7 @@ sleep 5
     }
   }
 
-  // 其他预定义命令
+  // 其他预定义command
   static async ocmLogin() {
     return await this.execute('ocm login --use-auth-code --url=integration');
   }
